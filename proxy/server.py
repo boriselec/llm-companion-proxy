@@ -240,17 +240,58 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                         logger.exception('Failed to send DONE chunk: %s', e)
                                     break
                                 else:
-                                    # Send normal chunks
-                                    out = (line + '\n\n').encode('utf-8')
+                                    # Check if this chunk contains finish_reason
+                                    finish_reason_chunk = None
+                                    payload = line
+                                    if payload.startswith('data: '):
+                                        payload = payload[len('data: '):]
                                     try:
-                                        self.request.sendall(out)
-                                        logger.debug('WROTE chunk to client (len=%d) ts=%f', len(out), time.time())
-                                    except BrokenPipeError:
-                                        logger.warning('Client disconnected while streaming')
-                                        return
+                                        obj = json.loads(payload)
+                                        if 'choices' in obj and obj['choices']:
+                                            choice = obj['choices'][0]
+                                            if choice.get('finish_reason'):
+                                                finish_reason_chunk = line
                                     except Exception:
-                                        logger.exception('Error writing chunk to client (socket sendall)')
-                                        return
+                                        pass
+
+                                    if finish_reason_chunk:
+                                        # This is the finish_reason chunk - don't send it yet
+                                        # Wait for companion and send companion content first, then finish_reason
+                                        companion_thread.join(timeout=5)
+                                        companion_text = companion_result_holder.get('text')
+                                        if companion_text:
+                                            logger.info('Sending companion chunk before finish_reason')
+                                            appended = '\n——\n' + companion_text
+                                            synthetic = {'choices': [{'delta': {'content': appended}}]}
+                                            s_chunk = 'data: ' + json.dumps(synthetic) + '\n\n'
+                                            try:
+                                                self.request.sendall(s_chunk.encode('utf-8'))
+                                                logger.debug('WROTE companion chunk to client (len=%d)', len(s_chunk))
+                                            except Exception as e:
+                                                logger.exception('Failed to send companion chunk: %s', e)
+                                        # Now send the finish_reason chunk
+                                        out = (finish_reason_chunk + '\n\n').encode('utf-8')
+                                        try:
+                                            self.request.sendall(out)
+                                            logger.debug('WROTE finish_reason chunk to client (len=%d) ts=%f', len(out), time.time())
+                                        except BrokenPipeError:
+                                            logger.warning('Client disconnected while streaming')
+                                            return
+                                        except Exception:
+                                            logger.exception('Error writing finish_reason chunk to client (socket sendall)')
+                                            return
+                                    else:
+                                        # Send normal chunks
+                                        out = (line + '\n\n').encode('utf-8')
+                                        try:
+                                            self.request.sendall(out)
+                                            logger.debug('WROTE chunk to client (len=%d) ts=%f', len(out), time.time())
+                                        except BrokenPipeError:
+                                            logger.warning('Client disconnected while streaming')
+                                            return
+                                        except Exception:
+                                            logger.exception('Error writing chunk to client (socket sendall)')
+                                            return
 
                                 # Try to parse JSON after removing possible 'data: ' prefix
                                 payload = line
