@@ -28,9 +28,14 @@ See .env.example for reference
    API_BASE=https://openrouter.ai/api/v1
    PROXY_PORT=8000
    COMPANION_TEMPERATURE=0.1
-   COMPANION_PROMPT=Check grammar in the following text. Do not nitpick. Reply only with fixed text or 'OK' if no changes. Text to check: {user_text}
    LOG_LEVEL=INFO
    ```
+
+3. Edit the companion prompt file to customize the prompt. Available files:
+   - `companion_prompt_grammar.txt` (grammar checking)
+   - `companion_prompt_translate_spanish.txt` (Spanish translation)
+   
+   Switch between them by changing `COMPANION_PROMPT_FILE` in your `.env` file.
 
 ## Running
 

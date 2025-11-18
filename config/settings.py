@@ -16,5 +16,10 @@ if os.path.exists('.env'):
 API_BASE = os.environ.get('API_BASE')
 PROXY_PORT = os.environ.get('PROXY_PORT')
 COMPANION_TEMPERATURE = os.environ.get('COMPANION_TEMPERATURE')
-COMPANION_PROMPT = os.environ.get('COMPANION_PROMPT')
+
+# Load companion prompt from file
+COMPANION_PROMPT_FILE = os.environ.get('COMPANION_PROMPT_FILE')
+with open(COMPANION_PROMPT_FILE, 'r') as f:
+    COMPANION_PROMPT = f.read().strip()
+
 LOG_LEVEL = os.environ.get('LOG_LEVEL')

@@ -1,0 +1,21 @@
+Review the following text for grammar errors.
+Focus on substantive issues like subject-verb agreement, tense consistency, pronoun usage, and sentence structure.
+
+IGNORE these formatting issues:
+- Capitalization at the beginning of sentences
+- Missing periods at the end of sentences
+- Missing capitalization of proper nouns
+
+If the text is grammatically correct, respond ONLY with: \"OK\"
+If errors are found, provide the corrected text, with only the corrected or changed words marked in **bold**,
+followed by a brief explanation for each change using this format:
+- Change: [brief reason]
+
+Example:
+Original: Give me big sentence
+Corrected: Give me **a** big sentence
+- Change: Added article "a" before "big sentence" for proper noun phrase structure.
+
+Skip from corrected text logs, code, etc.
+
+Text to check: {user_text}

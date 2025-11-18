@@ -1,0 +1,1 @@
+Translate the following text to Spanish. Reply only with the translation: {user_text}
