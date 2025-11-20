@@ -138,6 +138,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 # open upstream response as a stream and inspect its headers to confirm streaming
                 with s.post(main_url, headers=main_headers, json=req_json, stream=True, timeout=60) as resp:
                     logger.info('Upstream responded: status=%s content-type=%s', resp.status_code, resp.headers.get('Content-Type'))
+                    if resp.status_code != 200:
+                        try:
+                            body_preview = resp.text
+                        except Exception:
+                            body_preview = '<unreadable body>'
+                        logger.error('Upstream returned HTTP %s during streaming: %s', resp.status_code, body_preview)
                     # If upstream returned a non-streaming JSON payload, handle it with non-streaming path
                     ctype = (resp.headers.get('Content-Type') or '').lower()
                     if resp.status_code != 200 or 'application/json' in ctype:
@@ -149,6 +155,17 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         if data is None:
                             # Fall back to raising so outer except returns 502
                             resp.raise_for_status()
+
+                        # If upstream returned an error, return it directly without companion processing
+                        if resp.status_code >= 400:
+                            out = json.dumps(data).encode('utf-8')
+                            self.send_response(resp.status_code)
+                            self.send_header('Content-Type', 'application/json')
+                            self.send_header('Content-Length', str(len(out)))
+                            self.end_headers()
+                            self.wfile.write(out)
+                            return
+
                         main_text = _extract_text_from_response_json(data) or ''
 
                         # Wait briefly for companion task to finish
