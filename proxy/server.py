@@ -72,6 +72,10 @@ class ProxyHandler(BaseHTTPRequestHandler):
         stream = bool(req_json.get('stream', False))
         logger.info('Stream flag: %s', stream)
 
+        # Log the model being used for this request if specified
+        if 'model' in req_json:
+            logger.info('Model used for request: %s', req_json['model'])
+
         # Disable Nagle (send small packets immediately) on the client socket to reduce buffering
         try:
             self.request.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
