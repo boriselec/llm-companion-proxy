@@ -216,6 +216,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         logger.exception('Failed to write initial role chunk')
 
                     main_text_parts = []
+                    companion_sent = False  # Track if companion text has been sent
 
                     # Read from raw stream incrementally to avoid buffering
                     buffer = b''
@@ -242,7 +243,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                     # Wait for companion
                                     companion_thread.join(timeout=5)
                                     companion_text = companion_result_holder.get('text')
-                                    if companion_text:
+                                    if companion_text and not companion_sent:
                                         logger.info('Sending companion chunk before DONE')
                                         appended = '\n——\n' + companion_text
                                         synthetic = {'choices': [{'delta': {'content': appended}}]}
@@ -250,6 +251,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                         try:
                                             self.request.sendall(s_chunk.encode('utf-8'))
                                             logger.debug('WROTE companion chunk to client (len=%d)', len(s_chunk))
+                                            companion_sent = True
                                         except Exception as e:
                                             logger.exception('Failed to send companion chunk: %s', e)
                                     # Now send DONE
@@ -280,7 +282,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                         # Wait for companion and send companion content first, then finish_reason
                                         companion_thread.join(timeout=5)
                                         companion_text = companion_result_holder.get('text')
-                                        if companion_text:
+                                        if companion_text and not companion_sent:
                                             logger.info('Sending companion chunk before finish_reason')
                                             appended = '\n——\n' + companion_text
                                             synthetic = {'choices': [{'delta': {'content': appended}}]}
@@ -288,6 +290,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                             try:
                                                 self.request.sendall(s_chunk.encode('utf-8'))
                                                 logger.debug('WROTE companion chunk to client (len=%d)', len(s_chunk))
+                                                companion_sent = True
                                             except Exception as e:
                                                 logger.exception('Failed to send companion chunk: %s', e)
                                         # Now send the finish_reason chunk
