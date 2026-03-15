@@ -46,6 +46,12 @@ class ProxyHandler(BaseHTTPRequestHandler):
             logger.exception('Failed to parse JSON body')
             return None
 
+    def handle(self):
+        try:
+            super().handle()
+        except ConnectionResetError:
+            pass  # Client disconnected between requests - that's fine
+
     def do_POST(self):
         parsed = urlparse(self.path)
         if parsed.path != '/v1/chat/completions':
@@ -259,6 +265,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                     try:
                                         self.request.sendall(out)
                                         logger.debug('WROTE DONE chunk to client (len=%d)', len(out))
+                                    except BrokenPipeError:
+                                        # this is probably fine, some clients disconnect
+                                        # after finish_reason 'done'
+                                        logger.info('Client disconnected before DONE')
+                                        return
                                     except Exception as e:
                                         logger.exception('Failed to send DONE chunk: %s', e)
                                     break
