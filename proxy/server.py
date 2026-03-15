@@ -347,7 +347,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                     logger.info('Companion result: %r', companion_text)
                     logger.info('About to check if companion_text: type=%s, len=%s', type(companion_text), len(companion_text) if companion_text else 'N/A')
 
-                    if companion_text:
+                    if companion_text and not companion_sent:
                         logger.info('Sending companion chunk, companion_text is truthy: %r', bool(companion_text))
                         appended = '\n——\n' + companion_text
                         # send a synthetic chunk in OpenAI streaming format
