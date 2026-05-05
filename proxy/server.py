@@ -16,6 +16,8 @@ from .companion_processor import call_companion_model
 
 logger = setup_logger(settings.LOG_LEVEL)
 
+COMPANION_SEPARATOR = '\n⸻✎⸻\n'
+
 
 def _extract_text_from_response_json(data: dict) -> Optional[str]:
     """Extract text content from OpenAI/OpenRouter response format."""
@@ -66,6 +68,14 @@ class ProxyHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b'Bad Request')
             return
+
+        # Strip companion responses from conversation history so the main model
+        # doesn't see (and mimic) prior grammar-check outputs.
+        for msg in req_json.get('messages') or []:
+            if msg.get('role') == 'assistant' and isinstance(msg.get('content'), str):
+                sep_idx = msg['content'].find(COMPANION_SEPARATOR)
+                if sep_idx != -1:
+                    msg['content'] = msg['content'][:sep_idx]
 
         logger.info('Incoming request for chat.completions')
         # Log headers but mask sensitive ones
@@ -182,7 +192,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                         companion_thread.join(timeout=5)
                         companion_text = companion_result_holder.get('text')
                         if companion_text:
-                            combined = main_text + '\n——\n' + companion_text
+                            combined = main_text + COMPANION_SEPARATOR + companion_text
                         else:
                             combined = main_text
 
@@ -251,7 +261,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                     companion_text = companion_result_holder.get('text')
                                     if companion_text and not companion_sent:
                                         logger.info('Sending companion chunk before DONE')
-                                        appended = '\n——\n' + companion_text
+                                        appended = COMPANION_SEPARATOR + companion_text
                                         synthetic = {'choices': [{'delta': {'content': appended}}]}
                                         s_chunk = 'data: ' + json.dumps(synthetic) + '\n\n'
                                         try:
@@ -295,7 +305,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                         companion_text = companion_result_holder.get('text')
                                         if companion_text and not companion_sent:
                                             logger.info('Sending companion chunk before finish_reason')
-                                            appended = '\n——\n' + companion_text
+                                            appended = COMPANION_SEPARATOR + companion_text
                                             synthetic = {'choices': [{'delta': {'content': appended}}]}
                                             s_chunk = 'data: ' + json.dumps(synthetic) + '\n\n'
                                             try:
@@ -360,7 +370,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
 
                     if companion_text and not companion_sent:
                         logger.info('Sending companion chunk, companion_text is truthy: %r', bool(companion_text))
-                        appended = '\n——\n' + companion_text
+                        appended = COMPANION_SEPARATOR + companion_text
                         # send a synthetic chunk in OpenAI streaming format
                         synthetic = {'choices': [{'delta': {'content': appended}}]}
                         s_chunk = 'data: ' + json.dumps(synthetic) + '\n\n'
@@ -398,7 +408,7 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 companion_text = companion_result_holder.get('text')
 
                 if companion_text:
-                    combined = main_text + '\n——\n' + companion_text
+                    combined = main_text + COMPANION_SEPARATOR + companion_text
                 else:
                     combined = main_text
 
